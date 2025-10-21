@@ -65,12 +65,97 @@
         .success { color: #10b981; }
         .error { color: #ef4444; }
         .warning { color: #f59e0b; }
+        
+        /* Avatar View Styles */
+        .avatar-section {
+            margin: 20px 0;
+            text-align: center;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border: 2px dashed #d1d5db;
+        }
+        .avatar-container {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 15px;
+        }
+        .avatar-image {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #0ea5e9;
+            background: #e5e7eb;
+            display: none;
+        }
+        .avatar-image.loaded {
+            display: block;
+        }
+        .avatar-placeholder {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            color: white;
+            border: 4px solid #d1d5db;
+        }
+        .avatar-placeholder.hidden {
+            display: none;
+        }
+        .avatar-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+        }
+        .avatar-loading.active {
+            display: block;
+        }
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #0ea5e9;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        .avatar-info {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 10px;
+        }
+        .avatar-info strong {
+            color: #374151;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Mini App (MISA SME Mini)</h1>
-        <p>Đây là mini app chạy từ iOS assets thông qua WebView.</p>
+        <p>Đây là mini app chạy từ Android assets thông qua WebView.</p>
+        
+        <!-- Avatar Section -->
+        <div class="avatar-section">
+            <div class="avatar-container">
+                <div id="avatarPlaceholder" class="avatar-placeholder">👤</div>
+                <img id="avatarImage" class="avatar-image" alt="Avatar">
+                <div id="avatarLoading" class="avatar-loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+            <div id="avatarInfo" class="avatar-info">Chưa có avatar</div>
+        </div>
         
         <button onclick="getAuthToken()">1. Lấy Token Định danh (SSO)</button>
         <button onclick="requestPayment()">2. Yêu cầu Thanh toán Đơn lẻ (Dialog Legacy)</button>
@@ -219,16 +304,41 @@
         }
 
         async function pickAvatar() {
+            // Get avatar elements
+            const avatarImage = document.getElementById('avatarImage');
+            const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+            const avatarLoading = document.getElementById('avatarLoading');
+            const avatarInfo = document.getElementById('avatarInfo');
+            
+            // Show loading state
+            avatarLoading.classList.add('active');
+            avatarPlaceholder.classList.add('hidden');
+            avatarImage.classList.remove('loaded');
+            avatarInfo.textContent = 'Đang mở thư viện ảnh...';
             resultEl.textContent = "⏳ Đang mở thư viện ảnh...";
+            
             try {
                 if (window.SuperApp) {
                     // Call SuperApp photo picker
                     const result = await window.SuperApp.pickImage();
                     
+                    // Hide loading
+                    avatarLoading.classList.remove('active');
+                    
                     if (result.success) {
                         const img = result.image;
                         
-                        // Display result with image preview
+                        // Update avatar image
+                        avatarImage.src = `data:${img.mimeType};base64,${img.base64}`;
+                        avatarImage.classList.add('loaded');
+                        
+                        // Update avatar info
+                        avatarInfo.innerHTML = `
+                            <strong>✅ Avatar đã cập nhật</strong><br>
+                            ${(img.size / 1024).toFixed(2)} KB • ${img.width} x ${img.height}px
+                        `;
+                        
+                        // Display result with image preview in result box
                         resultEl.innerHTML = `
                             <div style="padding: 15px; background: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 10px;">
                                 <h4 style="margin: 0 0 10px 0; color: #0c4a6e;">✅ Đã chọn ảnh thành công!</h4>
@@ -243,21 +353,33 @@
                             </div>
                         `;
                         
-                        // Save to storage
-                        await window.SuperApp.storage.set('selectedAvatar', img.base64);
+                        // Save to storage (save full image data)
+                        await window.SuperApp.storage.set('selectedAvatar', JSON.stringify(img));
                         
                         // Show toast
                         window.SuperApp.showToast('Avatar đã được cập nhật! ✨');
                         
                     } else {
+                        // User cancelled - restore placeholder
+                        avatarPlaceholder.classList.remove('hidden');
+                        avatarInfo.textContent = 'Không có ảnh nào được chọn';
                         resultEl.innerHTML = '<span class="warning">⚠️ Không có ảnh nào được chọn</span>';
                     }
                 } else {
+                    avatarLoading.classList.remove('active');
+                    avatarPlaceholder.classList.remove('hidden');
+                    avatarInfo.textContent = 'Lỗi: SuperApp Bridge không tồn tại';
                     resultEl.innerHTML = '<span class="error">❌ Lỗi: SuperApp Bridge không tồn tại.</span>';
                 }
             } catch (error) {
+                // Error - restore placeholder
+                avatarLoading.classList.remove('active');
+                avatarPlaceholder.classList.remove('hidden');
+                avatarInfo.textContent = 'Lỗi khi chọn ảnh';
                 resultEl.innerHTML = `<span class="error">❌ Lỗi: ${error}</span>`;
-                window.SuperApp.showAlert('Lỗi', 'Không thể chọn ảnh: ' + error);
+                if (window.SuperApp) {
+                    window.SuperApp.showAlert('Lỗi', 'Không thể chọn ảnh: ' + error);
+                }
             }
         }
 
@@ -287,7 +409,16 @@
                     
                     if (data && data.current_weather) {
                         const weather = data.current_weather;
-                        resultEl.innerHTML = `<span class="success">✅ Thời tiết Hà Nội:</span>\n🌡️ Nhiệt độ: ${weather.temperature}°C\n💨 Tốc độ gió: ${weather.windspeed} km/h\n🧭 Hướng gió: ${weather.winddirection}°\n⏰ Thời gian: ${weather.time}\n<strong>Raw Data:</strong>${JSON.stringify(data, null, 2)}`;
+                        resultEl.innerHTML = `
+                            <span class="success">✅ Thời tiết Hà Nội:</span>\n
+                            🌡️ Nhiệt độ: ${weather.temperature}°C
+                            💨 Tốc độ gió: ${weather.windspeed} km/h
+                            🧭 Hướng gió: ${weather.winddirection}°
+                            ⏰ Thời gian: ${weather.time}
+                            
+                            <strong>Raw Data:</strong>
+                            ${JSON.stringify(data, null, 2)}
+                        `;
                     } else {
                         resultEl.innerHTML = `<span class="success">✅ API Response:</span>\n${JSON.stringify(result, null, 2)}`;
                     }
@@ -303,13 +434,38 @@
         window.addEventListener('load', async () => {
             try {
                 if (window.SuperApp) {
-                    const savedAvatar = await window.SuperApp.storage.get('selectedAvatar');
-                    if (savedAvatar) {
-                        console.log('Found saved avatar in storage');
+                    const savedData = await window.SuperApp.storage.get('selectedAvatar');
+                    if (savedData && savedData.value) {
+                        try {
+                            // Parse saved avatar data
+                            const img = JSON.parse(savedData.value);
+                            
+                            // Get avatar elements
+                            const avatarImage = document.getElementById('avatarImage');
+                            const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+                            const avatarInfo = document.getElementById('avatarInfo');
+                            
+                            // Update avatar UI
+                            avatarImage.src = `data:${img.mimeType};base64,${img.base64}`;
+                            avatarImage.classList.add('loaded');
+                            avatarPlaceholder.classList.add('hidden');
+                            
+                            // Update avatar info
+                            avatarInfo.innerHTML = `
+                                <strong>✅ Avatar đã lưu</strong><br>
+                                ${(img.size / 1024).toFixed(2)} KB • ${img.width} x ${img.height}px
+                            `;
+                            
+                            console.log('✅ Loaded saved avatar from storage');
+                        } catch (parseError) {
+                            console.log('❌ Error parsing saved avatar:', parseError);
+                        }
+                    } else {
+                        console.log('ℹ️ No saved avatar found');
                     }
                 }
             } catch (error) {
-                console.log('No saved avatar');
+                console.log('ℹ️ No saved avatar or error loading:', error);
             }
         });
     </script>
