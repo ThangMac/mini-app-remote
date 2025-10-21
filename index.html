@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini App - Tiện Ích</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            padding: 1rem; 
+            background: #f5f5f5;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: auto; 
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0ea5e9;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            font-size: 14px;
+        }
+        button { 
+            display: block; 
+            width: 100%; 
+            padding: 15px; 
+            margin-bottom: 10px; 
+            font-size: 16px;
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:active {
+            opacity: 0.7;
+            transform: scale(0.98);
+        }
+        h3 {
+            color: #333;
+            font-size: 18px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        pre { 
+            background-color: #f4f4f4; 
+            padding: 15px; 
+            border-radius: 8px; 
+            white-space: pre-wrap; 
+            word-wrap: break-word;
+            font-size: 13px;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .warning { color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mini App (MISA SME Mini)</h1>
+        <p>Đây là mini app chạy từ Android assets thông qua WebView.</p>
+        
+        <button onclick="getAuthToken()">1. Lấy Token Định danh (SSO)</button>
+        <button onclick="requestPayment()">2. Yêu cầu Thanh toán Đơn lẻ (Dialog Legacy)</button>
+        <button onclick="requestPaymentFullscreen()">3. Yêu cầu Thanh toán Toàn màn hình</button>
+        <button onclick="requestPaymentFailed()">4. Yêu cầu Thanh toán Đơn lẻ (Mô phỏng FAILED)</button>
+        <button onclick="requestBatchPayment()">5. Yêu cầu Thanh toán theo Lô (Chi lương)</button>
+        <button onclick="pickAvatar()">6. Chọn Avatar</button>
+        <button onclick="callPublicAPI()">7. Gọi Public API (Thời tiết Open‑Meteo)</button>
+
+        <h3>Kết quả từ Shell App:</h3>
+        <pre id="result">Chưa có dữ liệu...</pre>
+    </div>
+
+    <script>
+        const resultEl = document.getElementById("result");
+
+        // Check SuperApp Bridge availability
+        if (!window.SuperApp) {
+            resultEl.textContent = "❌ Lỗi: SuperApp Bridge không khả dụng!\nMini app phải chạy trong SuperApp.";
+        } else {
+            resultEl.textContent = "✅ SuperApp Bridge sẵn sàng!\nVersion: " + window.SuperApp.version;
+        }
+
+        // Hàm này sẽ được gọi bởi Shell App sau khi thanh toán hoàn tất
+        window.onPaymentResult = function(result) {
+            resultEl.textContent = `✅ Thanh toán hoàn tất:\n${JSON.stringify(result, null, 2)}`;
+        }
+
+        // --- Các hàm gọi xuống SuperApp qua Bridge ---
+
+        async function getAuthToken() {
+            resultEl.textContent = "⏳ Đang lấy Token SSO...";
+            try {
+                if (window.SuperApp) {
+                    // Get user info from SuperApp
+                    const userInfo = await window.SuperApp.getUserInfo();
+                    
+                    // Mock JWT token (trong thực tế sẽ call API backend)
+                    const mockToken = btoa(JSON.stringify({
+                        userId: userInfo.id,
+                        email: userInfo.email,
+                        appKey: "MISA_SME_MINI_KEY",
+                        timestamp: Date.now(),
+                        expiresIn: 3600
+                    }));
+                    
+                    resultEl.innerHTML = `<span class="success">✅ Nhận được JWT Token:</span>\n\n<strong>User Info:</strong>\n${JSON.stringify(userInfo, null, 2)}\n\n<strong>Mock Token:</strong>\n${mockToken}`;
+                } else {
+                    resultEl.innerHTML = '<span class="error">❌ Lỗi: SuperApp Bridge không tồn tại.</span>';
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">❌ Lỗi: ${error}</span>`;
+            }
+        }
+
+        async function requestPayment() {
+            resultEl.textContent = "⏳ Đang gọi requestPayment...";
+            try {
+                if (window.SuperApp) {
+                    // Call SuperApp payment API
+                    const result = await window.SuperApp.pay({
+                        amount: 500000,
+                        currency: 'VND',
+                        orderId: `ORD-${Date.now()}`,
+                        description: 'Thanh toán đơn hàng',
+                        method: 'dialog'
+                    });
+                    
+                    resultEl.innerHTML = `<span class="success">✅ Thanh toán thành công!</span>\n\n${JSON.stringify(result, null, 2)}`;
+                } else {
+                    resultEl.innerHTML = '<span class="error">❌ Lỗi: SuperApp Bridge không tồn tại.</span>';
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">❌ Lỗi: ${error}</span>`;
+            }
+        }
+
+        async function requestPaymentFullscreen() {
+            resultEl.textContent = "⏳ Đang mở màn hình thanh toán toàn màn hình...";
+            try {
+                if (window.SuperApp) {
+                    const result = await window.SuperApp.pay({
+                        amount: 1000000,
+                        currency: 'VND',
+                        orderId: `ORD-FULL-${Date.now()}`,
+                        description: 'Thanh toán toàn màn hình',
+                        method: 'fullscreen'
+                    });
+                    
+                    resultEl.innerHTML = `<span class="success">✅ Thanh toán toàn màn hình thành công!</span>\n\n${JSON.stringify(result, null, 2)}`;
+                } else {
+                    resultEl.innerHTML = '<span class="error">❌ Lỗi: SuperApp Bridge không tồn tại.</span>';
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">❌ Lỗi: ${error}</span>`;
+            }
+        }
+
+        async function requestPaymentFailed() {
+            resultEl.textContent = "⏳ Đang gọi requestPayment (mô phỏng FAILED)...";
+            try {
+                if (window.SuperApp) {
+                    // Mock failed payment
+                    const mockResult = {
+                        success: false,
+                        errorCode: 'PAYMENT_CANCELLED',
+                        message: 'Người dùng đã hủy thanh toán',
+                        orderId: `ORD-FAIL-${Date.now()}`
+                    };
+                    
+                    resultEl.innerHTML = `<span class="error">❌ Thanh toán thất bại!</span>\n\n${JSON.stringify(mockResult, null, 2)}`;
+                } else {
+                    resultEl.innerHTML = '<span class="error">❌ Lỗi: SuperApp Bridge không tồn tại.</span>';
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">❌ Lỗi: ${error}</span>`;
+            }
+        }
+
+        async function requestBatchPayment() {
+            resultEl.textContent = "⏳ Đang gọi requestBatchPayment...";
+            try {
+                if (window.SuperApp) {
+                    const payments = [
+                        { amount: 15000000, toAccount: "123456", name: "Nguyen Van A" },
+                        { amount: 18000000, toAccount: "789012", name: "Tran Thi B" },
+                        { amount: 12000000, toAccount: "345678", name: "Le Van C" }
+                    ];
+                    
+                    // Call SuperApp payment API for batch
+                    const result = await window.SuperApp.pay({
+                        type: 'batch',
+                        payments: payments,
+                        batchId: `BATCH-${Date.now()}`,
+                        totalAmount: payments.reduce((sum, p) => sum + p.amount, 0),
+                        description: 'Chi lương tháng 10/2024'
+                    });
+                    
+                    resultEl.innerHTML = `<span class="success">✅ Yêu cầu chi lương theo lô thành công!</span>\n\n${JSON.stringify(result, null, 2)}`;
+                } else {
+                    resultEl.innerHTML = '<span class="error">❌ Lỗi: SuperApp Bridge không tồn tại.</span>';
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">❌ Lỗi: ${error}</span>`;
+            }
+        }
+
+        async function pickAvatar() {
+            resultEl.textContent = "⏳ Đang mở thư viện ảnh...";
+            try {
+                if (window.SuperApp) {
+                    // Call SuperApp photo picker
+                    const result = await window.SuperApp.pickImage();
+                    
+                    if (result.success) {
+                        const img = result.image;
+                        
+                        // Display result with image preview
+                        resultEl.innerHTML = `
+                            <div style="padding: 15px; background: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 10px;">
+                                <h4 style="margin: 0 0 10px 0; color: #0c4a6e;">✅ Đã chọn ảnh thành công!</h4>
+                                <img src="data:${img.mimeType};base64,${img.base64}" 
+                                     style="max-width: 200px; height: auto; border-radius: 8px; margin: 10px 0; display: block; border: 2px solid #0ea5e9;"
+                                     alt="Selected Avatar">
+                                <p style="margin: 5px 0; color: #0c4a6e;">
+                                    <strong>Kích thước:</strong> ${(img.size / 1024).toFixed(2)} KB<br>
+                                    <strong>Độ phân giải:</strong> ${img.width} x ${img.height}px<br>
+                                    <strong>Định dạng:</strong> ${img.mimeType}
+                                </p>
+                            </div>
+                        `;
+                        
+                        // Save to storage
+                        await window.SuperApp.storage.set('selectedAvatar', img.base64);
+                        
+                        // Show toast
+                        window.SuperApp.showToast('Avatar đã được cập nhật! ✨');
+                        
+                    } else {
+                        resultEl.innerHTML = '<span class="warning">⚠️ Không có ảnh nào được chọn</span>';
+                    }
+                } else {
+                    resultEl.innerHTML = '<span class="error">❌ Lỗi: SuperApp Bridge không tồn tại.</span>';
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">❌ Lỗi: ${error}</span>`;
+                window.SuperApp.showAlert('Lỗi', 'Không thể chọn ảnh: ' + error);
+            }
+        }
+
+        async function callPublicAPI() {
+            resultEl.textContent = "⏳ Đang gọi API thời tiết...";
+            try {
+                if (window.SuperApp) {
+                    // Call Open-Meteo API for weather in Hanoi
+                    const result = await window.SuperApp.request({
+                        url: 'https://api.open-meteo.com/v1/forecast?latitude=21.0285&longitude=105.8542&current_weather=true',
+                        method: 'GET'
+                    });
+                    
+                    // Parse response
+                    const data = typeof result === 'string' ? JSON.parse(result) : result;
+                    
+                    if (data.current_weather) {
+                        const weather = data.current_weather;
+                        resultEl.innerHTML = `
+                            <span class="success">✅ Thời tiết Hà Nội:</span>\n
+                            🌡️ Nhiệt độ: ${weather.temperature}°C
+                            💨 Tốc độ gió: ${weather.windspeed} km/h
+                            🧭 Hướng gió: ${weather.winddirection}°
+                            ⏰ Thời gian: ${weather.time}
+                            
+                            <strong>Raw Data:</strong>
+                            ${JSON.stringify(data, null, 2)}
+                        `;
+                    } else {
+                        resultEl.innerHTML = `<span class="success">✅ API Response:</span>\n${JSON.stringify(data, null, 2)}`;
+                    }
+                } else {
+                    resultEl.innerHTML = '<span class="error">❌ Lỗi: SuperApp Bridge không tồn tại.</span>';
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">❌ Lỗi: ${error}</span>`;
+            }
+        }
+
+        // Load saved avatar on startup
+        window.addEventListener('load', async () => {
+            try {
+                if (window.SuperApp) {
+                    const savedAvatar = await window.SuperApp.storage.get('selectedAvatar');
+                    if (savedAvatar) {
+                        console.log('Found saved avatar in storage');
+                    }
+                }
+            } catch (error) {
+                console.log('No saved avatar');
+            }
+        });
+    </script>
+</body>
+</html>
+
