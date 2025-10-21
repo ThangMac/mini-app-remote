@@ -287,16 +287,7 @@
                     
                     if (data && data.current_weather) {
                         const weather = data.current_weather;
-                        resultEl.innerHTML = `
-                            <span class="success">✅ Thời tiết Hà Nội:</span>\n
-                            🌡️ Nhiệt độ: ${weather.temperature}°C
-                            💨 Tốc độ gió: ${weather.windspeed} km/h
-                            🧭 Hướng gió: ${weather.winddirection}°
-                            ⏰ Thời gian: ${weather.time}
-                            
-                            <strong>Raw Data:</strong>
-                            ${JSON.stringify(data, null, 2)}
-                        `;
+                        resultEl.innerHTML = `<span class="success">✅ Thời tiết Hà Nội:</span>\n🌡️ Nhiệt độ: ${weather.temperature}°C\n💨 Tốc độ gió: ${weather.windspeed} km/h\n🧭 Hướng gió: ${weather.winddirection}°\n⏰ Thời gian: ${weather.time}\n<strong>Raw Data:</strong>${JSON.stringify(data, null, 2)}`;
                     } else {
                         resultEl.innerHTML = `<span class="success">✅ API Response:</span>\n${JSON.stringify(result, null, 2)}`;
                     }
