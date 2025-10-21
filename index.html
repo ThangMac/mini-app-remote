@@ -271,10 +271,21 @@
                         method: 'GET'
                     });
                     
-                    // Parse response
-                    const data = typeof result === 'string' ? JSON.parse(result) : result;
+                    // Parse response.data correctly (SuperApp returns {data: ..., status: ...})
+                    let data;
+                    if (result && result.data) {
+                        // Parse the data field
+                        if (typeof result.data === 'string') {
+                            data = JSON.parse(result.data);
+                        } else {
+                            data = result.data;
+                        }
+                    } else {
+                        // Fallback to direct result
+                        data = typeof result === 'string' ? JSON.parse(result) : result;
+                    }
                     
-                    if (data.current_weather) {
+                    if (data && data.current_weather) {
                         const weather = data.current_weather;
                         resultEl.innerHTML = `
                             <span class="success">✅ Thời tiết Hà Nội:</span>\n
@@ -287,7 +298,7 @@
                             ${JSON.stringify(data, null, 2)}
                         `;
                     } else {
-                        resultEl.innerHTML = `<span class="success">✅ API Response:</span>\n${JSON.stringify(data, null, 2)}`;
+                        resultEl.innerHTML = `<span class="success">✅ API Response:</span>\n${JSON.stringify(result, null, 2)}`;
                     }
                 } else {
                     resultEl.innerHTML = '<span class="error">❌ Lỗi: SuperApp Bridge không tồn tại.</span>';
@@ -313,4 +324,5 @@
     </script>
 </body>
 </html>
+
 
