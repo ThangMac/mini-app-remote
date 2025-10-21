@@ -142,7 +142,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Mini App</h1>
+        <h1>Mini App (MISA SME Mini)</h1>
         <p>Đây là mini app chạy từ iOS assets thông qua WebView.</p>
         
         <!-- Avatar Section -->
@@ -426,10 +426,10 @@
             try {
                 if (window.SuperApp) {
                     const savedData = await window.SuperApp.storage.get('selectedAvatar');
-                    if (savedData && savedData.value) {
+                    if (savedData) {
                         try {
-                            // Parse saved avatar data
-                            const img = JSON.parse(savedData.value);
+                            // Parse saved avatar data (savedData is already unwrapped)
+                            const img = JSON.parse(savedData);
                             
                             // Get avatar elements
                             const avatarImage = document.getElementById('avatarImage');
